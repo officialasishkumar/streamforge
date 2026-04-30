@@ -1,0 +1,30 @@
+# Go
+bin/
+dist/
+*.test
+*.out
+*.cover
+coverage.*
+
+# Build artifacts
+build/
+tmp/
+
+# Environment and local config
+.env
+.env.*
+*.local.yaml
+*.local.yml
+
+# macOS
+.DS_Store
+
+# IDE/editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Tooling caches
+.cache/
+.tmp/
