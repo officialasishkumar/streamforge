@@ -22,7 +22,7 @@ jobs:
       - run: docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/officialasishkumar/streamforge:${{ github.ref_name }} --push .
       - uses: azure/setup-helm@v4
       - run: helm package deploy/helm/streamforge --destination dist
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           files: dist/*.tgz
           generate_release_notes: true
