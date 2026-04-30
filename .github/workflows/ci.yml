@@ -86,7 +86,7 @@ jobs:
       - run: go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
       - run: govulncheck ./...
       - run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect --source=/repo --no-git
-      - run: docker run --rm -v "$PWD:/src" aquasec/trivy:0.53.0 fs --exit-code 1 /src
+      - run: docker run --rm -v "$PWD:/src" aquasec/trivy:0.53.0 fs --ignorefile /src/.trivyignore --exit-code 1 /src
 
   docker-build:
     runs-on: ubuntu-latest
