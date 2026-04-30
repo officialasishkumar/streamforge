@@ -1,0 +1,34 @@
+name: perf-regression
+
+on:
+  push:
+    branches: [main, "release/*"]
+  schedule:
+    - cron: "0 3 * * 0"
+  workflow_dispatch:
+
+jobs:
+  perf-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose up -d
+      - run: mkdir -p bench/results/current
+      - run: docker run --rm --network host -v "$PWD/bench/k6:/scripts" -v "$PWD/bench/results/current:/out" grafana/k6 run --duration 10m --summary-export /out/ingest_baseline.json /scripts/ingest_baseline.js
+      - run: python3 bench/compare.py bench/results/baseline.json bench/results/current/ingest_baseline.json | tee bench/results/current/comparison.md
+      - run: cat bench/results/current/comparison.md >> "$GITHUB_STEP_SUMMARY"
+      - run: docker compose down -v
+
+  promote-baseline:
+    if: startsWith(github.ref, 'refs/heads/release/')
+    runs-on: ubuntu-latest
+    needs: perf-regression
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp bench/results/current/ingest_baseline.json bench/results/baseline.json || true
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bench/results/baseline.json
+          git commit -m "perf: promote baseline [skip ci]" || true
+          git push || true
