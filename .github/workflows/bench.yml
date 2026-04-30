@@ -11,7 +11,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: docker compose up -d
       - run: docker run --rm --network host -v "$PWD/bench/k6:/scripts" grafana/k6 run --duration 1m --vus 50 /scripts/ingest_baseline.js
       - run: docker compose down -v
@@ -20,7 +20,7 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: docker compose up -d
       - run: mkdir -p bench/results/current
       - run: docker run --rm --network host -v "$PWD/bench/k6:/scripts" -v "$PWD/bench/results/current:/out" grafana/k6 run --summary-export /out/ingest_baseline.json /scripts/ingest_baseline.js

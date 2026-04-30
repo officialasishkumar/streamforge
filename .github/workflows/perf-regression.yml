@@ -11,7 +11,7 @@ jobs:
   perf-regression:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: docker compose up -d
       - run: mkdir -p bench/results/current
       - run: docker run --rm --network host -v "$PWD/bench/k6:/scripts" -v "$PWD/bench/results/current:/out" grafana/k6 run --duration 10m --summary-export /out/ingest_baseline.json /scripts/ingest_baseline.js
@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: perf-regression
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: cp bench/results/current/ingest_baseline.json bench/results/baseline.json || true
       - run: |
           git config user.name "github-actions[bot]"
