@@ -1,0 +1,36 @@
+name: bench
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  smoke-bench:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose up -d
+      - run: docker run --rm --network host -v "$PWD/bench/k6:/scripts" grafana/k6 run --duration 1m --vus 50 /scripts/ingest_baseline.js
+      - run: docker compose down -v
+
+  full-bench:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose up -d
+      - run: mkdir -p bench/results/current
+      - run: docker run --rm --network host -v "$PWD/bench/k6:/scripts" -v "$PWD/bench/results/current:/out" grafana/k6 run --summary-export /out/ingest_baseline.json /scripts/ingest_baseline.js
+      - run: docker run --rm --network host -v "$PWD/bench/k6:/scripts" grafana/k6 run /scripts/burst.js
+      - run: docker run --rm --network host -v "$PWD/bench/k6:/scripts" grafana/k6 run /scripts/sustained.js
+      - run: docker run --rm --network host -v "$PWD/bench/k6:/scripts" grafana/k6 run /scripts/mixed_workload.js
+      - run: python3 bench/compare.py bench/results/baseline.json bench/results/current/ingest_baseline.json > bench/results/current/comparison.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-results
+          path: bench/results/current
+      - run: cat bench/results/current/comparison.md >> "$GITHUB_STEP_SUMMARY"
+      - run: docker compose down -v
