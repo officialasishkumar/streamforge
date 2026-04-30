@@ -1,0 +1,52 @@
+# StreamForge runtime configuration.
+# All values are overridable using STREAMFORGE_* environment variables.
+
+ingest:
+  port: 8080
+  max_batch_size: 1000 # Upper cap protects memory and downstream dependencies.
+  request_timeout: 5s
+
+workers:
+  pool_size: 8
+  batch_size: 500
+  fetch_timeout: 2s
+
+kafka:
+  brokers:
+    - localhost:9092
+  topics:
+    events: streamforge.events
+    dlq: streamforge.dlq
+    outbox: streamforge.outbox
+  partitioner_strategy: tenant_hash # Ensures per-tenant ordering consistency.
+
+postgres:
+  dsn: postgres://postgres:postgres@localhost:5432/streamforge?sslmode=disable
+  pool_min: 4
+  pool_max: 32
+  statement_timeout: 5s
+
+s3:
+  bucket: streamforge-events
+  endpoint: http://localhost:4566 # LocalStack by default for local environments.
+  region: us-east-1
+  archive_prefix: raw-events/
+
+sqs:
+  queue_url: http://localhost:4566/000000000000/streamforge-outbox
+  endpoint: http://localhost:4566
+  region: us-east-1
+
+redis:
+  addr: localhost:6379
+  db: 0
+  ratelimit_key_prefix: streamforge:ratelimit:
+
+observability:
+  metrics_addr: ":9090"
+  log_level: info
+  sample_rate: 1.0 # Set <1.0 for probabilistic debug-level log sampling in high-volume tenants.
+
+rate_limits:
+  default_per_tenant_rps: 1000
+  default_burst: 2000
