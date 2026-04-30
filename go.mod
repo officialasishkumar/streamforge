@@ -7,6 +7,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.27.18
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.18
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.58.0
+	github.com/aws/aws-sdk-go-v2/service/sqs v1.34.0
+	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/confluentinc/confluent-kafka-go/v2 v2.5.0
 	github.com/go-redis/redis_rate/v10 v10.0.1
 	github.com/jackc/pgx/v5 v5.5.5
@@ -16,6 +18,7 @@ require (
 	github.com/spf13/viper v1.19.0
 	github.com/testcontainers/testcontainers-go v0.31.0
 	github.com/xeipuuv/gojsonschema v1.2.0
+	golang.org/x/sync v0.7.0
 )
 
 require (
@@ -38,7 +41,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.28.12 // indirect
 	github.com/aws/smithy-go v1.20.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/containerd/containerd v1.7.15 // indirect
 	github.com/containerd/log v0.1.0 // indirect
@@ -101,7 +103,6 @@ require (
 	go.uber.org/multierr v1.9.0 // indirect
 	golang.org/x/crypto v0.22.0 // indirect
 	golang.org/x/exp v0.0.0-20240112132812-db7319d0e0e3 // indirect
-	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/sys v0.20.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240318140521-94a12d6c2237 // indirect
