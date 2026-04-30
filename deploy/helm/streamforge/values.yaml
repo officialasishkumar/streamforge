@@ -1,0 +1,56 @@
+image:
+  repository: ghcr.io/officialasishkumar/streamforge
+  tag: latest
+  pullPolicy: IfNotPresent
+
+ingest:
+  replicas: 2
+  service:
+    type: ClusterIP
+    port: 8080
+  ingress:
+    enabled: false
+    className: nginx
+    host: streamforge.local
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+worker:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+hpa:
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  kafkaLagTarget: 1000 # used with prometheus-adapter custom metric wiring
+
+serviceAccount:
+  create: true
+  name: streamforge
+
+rbac:
+  create: true
+
+networkPolicy:
+  enabled: true
+
+pdb:
+  minAvailable: 1
+
+config:
+  path: /etc/streamforge/streamforge.yaml
+
+secrets:
+  postgresDSN: postgres://postgres:postgres@postgres:5432/streamforge?sslmode=disable
