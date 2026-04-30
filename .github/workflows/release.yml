@@ -20,7 +20,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - run: docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/officialasishkumar/streamforge:${{ github.ref_name }} --push .
-      - uses: azure/setup-helm@v4
+      - uses: azure/setup-helm@v5
       - run: helm package deploy/helm/streamforge --destination dist
       - uses: softprops/action-gh-release@v2
         with:
