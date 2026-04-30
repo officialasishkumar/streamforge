@@ -1,0 +1,10 @@
+{
+  "generated_at": "2026-05-01T00:00:00Z",
+  "metrics": {
+    "http_req_duration_p50_ms": 75.0,
+    "http_req_duration_p95_ms": 165.0,
+    "http_req_duration_p99_ms": 255.0,
+    "http_req_failed_rate": 0.01
+  },
+  "notes": "Initial locked baseline placeholder. Replace after first stable full-bench run."
+}
