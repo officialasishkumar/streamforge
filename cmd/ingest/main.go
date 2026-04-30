@@ -2,22 +2,20 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/officialasishkumar/streamforge/internal/config"
 	"github.com/officialasishkumar/streamforge/internal/ingest"
-	"github.com/officialasishkumar/streamforge/internal/types"
+	"github.com/officialasishkumar/streamforge/internal/store"
+	"github.com/redis/go-redis/v9"
 )
-
-type staticReadiness struct{}
-
-func (staticReadiness) Ready(context.Context) error { return nil }
 
 func main() {
 	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
@@ -34,13 +32,49 @@ func main() {
 		RequestTimeout: cfg.Ingest.RequestTimeout,
 	}
 
-	// Step 3 wires concrete implementations in thin slices.
+	storeClient, err := store.New(context.Background(), cfg.Postgres.DSN, cfg.Postgres.PoolMax, log)
+	if err != nil {
+		log.Error("failed to initialize store", "error", err)
+		os.Exit(1)
+	}
+	defer storeClient.Close()
+
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: cfg.Redis.Addr,
+		DB:   cfg.Redis.DB,
+	})
+	defer redisClient.Close()
+
+	rateLimiter := ingest.NewRedisRateLimiter(
+		redisClient,
+		cfg.Redis.RateLimitKeyPrefix,
+		cfg.RateLimits.DefaultPerTenantRPS,
+		cfg.RateLimits.DefaultBurst,
+		true,
+	)
+
+	producer, err := ingest.NewKafkaProducer(strings.Join(cfg.Kafka.Brokers, ","), cfg.Kafka.Topics.Events)
+	if err != nil {
+		log.Error("failed to initialize kafka producer", "error", err)
+		os.Exit(1)
+	}
+	defer producer.Close()
+
+	archiver, err := ingest.NewS3Archiver(context.Background(), cfg.S3.Endpoint, cfg.S3.Region, cfg.S3.Bucket, cfg.S3.ArchivePrefix)
+	if err != nil {
+		log.Error("failed to initialize s3 archiver", "error", err)
+		os.Exit(1)
+	}
+
 	handlerDeps := ingest.Dependencies{
-		SchemaCache: ingest.NewSchemaCache(staticSchemaProvider{}, 60*time.Second),
-		RateLimiter: &allowAllRateLimiter{},
-		Producer:    &noopProducer{},
-		Archiver:    &noopArchiver{},
-		Readiness:   staticReadiness{},
+		SchemaCache: ingest.NewSchemaCache(storeClient, 60*time.Second),
+		RateLimiter: rateLimiter,
+		Producer:    producer,
+		Archiver:    archiver,
+		Readiness: readiness{
+			store: storeClient,
+			redis: redisClient,
+		},
 	}
 
 	srv := ingest.NewServer(serverCfg, handlerDeps, log)
@@ -63,29 +97,19 @@ func main() {
 	}
 }
 
-type staticSchemaProvider struct{}
-
-func (staticSchemaProvider) ActiveSchemasForTenant(context.Context, string) (map[string]json.RawMessage, error) {
-	return map[string]json.RawMessage{
-		"user.signup": json.RawMessage(`{"type":"object"}`),
-	}, nil
+type readiness struct {
+	store *store.Store
+	redis *redis.Client
 }
 
-type allowAllRateLimiter struct{}
-
-func (*allowAllRateLimiter) Allow(context.Context, string, int) (bool, time.Duration, error) {
-	return true, 0, nil
-}
-
-type noopProducer struct{}
-
-func (*noopProducer) PublishBatch(context.Context, string, string, string, []types.Event) error {
+func (r readiness) Ready(ctx context.Context) error {
+	checkCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	if err := r.store.Ping(checkCtx); err != nil {
+		return fmt.Errorf("postgres not ready: %w", err)
+	}
+	if err := r.redis.Ping(checkCtx).Err(); err != nil {
+		return fmt.Errorf("redis not ready: %w", err)
+	}
 	return nil
-}
-func (*noopProducer) Close() {}
-
-type noopArchiver struct{}
-
-func (*noopArchiver) ArchiveBatch(context.Context, string, string, []types.Event) (string, error) {
-	return "noop/object.json", nil
 }

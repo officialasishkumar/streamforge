@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/officialasishkumar/streamforge/internal/types"
@@ -76,11 +77,11 @@ func (h *Handler) HandleEvents(w http.ResponseWriter, r *http.Request) {
 
 	allowed, retryAfter, err := h.deps.RateLimiter.Allow(ctx, req.TenantID, len(req.Events))
 	if err != nil {
-		writeJSONWithHeaders(w, http.StatusServiceUnavailable, map[string]string{"Retry-After": retryAfter.String()}, map[string]any{"error": "rate_limit_dependency_unavailable"})
+		writeJSONWithHeaders(w, http.StatusServiceUnavailable, map[string]string{"Retry-After": retryAfterHeader(retryAfter)}, map[string]any{"error": "rate_limit_dependency_unavailable"})
 		return
 	}
 	if !allowed {
-		writeJSONWithHeaders(w, http.StatusTooManyRequests, map[string]string{"Retry-After": retryAfter.String()}, map[string]any{"error": "rate_limited"})
+		writeJSONWithHeaders(w, http.StatusTooManyRequests, map[string]string{"Retry-After": retryAfterHeader(retryAfter)}, map[string]any{"error": "rate_limited"})
 		return
 	}
 
@@ -126,6 +127,14 @@ func writeJSONWithHeaders(w http.ResponseWriter, code int, headers map[string]st
 	}
 	w.WriteHeader(code)
 	if err := json.NewEncoder(w).Encode(payload); err != nil {
-		slog.Error(fmt.Sprintf("ingest: encode response: %v", err))
+		http.Error(w, fmt.Sprintf("{\"error\":\"response_encoding_failed\",\"details\":%q}", err.Error()), http.StatusInternalServerError)
 	}
+}
+
+func retryAfterHeader(d time.Duration) string {
+	secs := int(d.Seconds())
+	if secs < 1 {
+		secs = 1
+	}
+	return strconv.Itoa(secs)
 }

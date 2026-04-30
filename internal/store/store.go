@@ -41,6 +41,12 @@ type Store struct {
 	breakerSQL *gobreaker.CircuitBreaker
 }
 
+type SchemaRow struct {
+	TenantID  string
+	EventType string
+	Schema    json.RawMessage
+}
+
 func New(ctx context.Context, dsn string, maxConns int32, log *slog.Logger) (*Store, error) {
 	cfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
@@ -212,4 +218,41 @@ VALUES ($1, $2, $3, $4, $5)
 
 func (s *Store) Close() {
 	s.pool.Close()
+}
+
+func (s *Store) ActiveSchemasForTenant(ctx context.Context, tenantID string) (map[string]json.RawMessage, error) {
+	v, err := s.breakerSQL.Execute(func() (any, error) {
+		rows, err := s.pool.Query(ctx, `
+SELECT event_type, schema
+FROM event_schemas
+WHERE tenant_id = $1 AND active = TRUE
+ORDER BY event_type ASC
+`, tenantID)
+		if err != nil {
+			return nil, fmt.Errorf("query active schemas: %w", err)
+		}
+		defer rows.Close()
+
+		out := make(map[string]json.RawMessage)
+		for rows.Next() {
+			var eventType string
+			var schema json.RawMessage
+			if err := rows.Scan(&eventType, &schema); err != nil {
+				return nil, fmt.Errorf("scan active schema row: %w", err)
+			}
+			out[eventType] = schema
+		}
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("iterate active schema rows: %w", err)
+		}
+		return out, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("store: active schemas for tenant: %w", err)
+	}
+	schemas, ok := v.(map[string]json.RawMessage)
+	if !ok {
+		return nil, fmt.Errorf("store: unexpected active schema result type")
+	}
+	return schemas, nil
 }

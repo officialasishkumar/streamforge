@@ -31,15 +31,27 @@ func (h *Handler) withRequestID(next http.Handler) http.Handler {
 func (h *Handler) withLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		next.ServeHTTP(w, r)
+		rw := &statusCapturingResponseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+		next.ServeHTTP(rw, r)
 		h.log.Info(
 			"request completed",
 			"method", r.Method,
 			"path", r.URL.Path,
 			"correlation_id", requestIDFromContext(r.Context()),
 			"duration_ms", time.Since(start).Milliseconds(),
+			"status", rw.statusCode,
 		)
 	})
+}
+
+type statusCapturingResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (w *statusCapturingResponseWriter) WriteHeader(statusCode int) {
+	w.statusCode = statusCode
+	w.ResponseWriter.WriteHeader(statusCode)
 }
 
 func requestIDFromContext(ctx context.Context) string {
