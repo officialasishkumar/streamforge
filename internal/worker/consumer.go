@@ -24,13 +24,13 @@ type Config struct {
 }
 
 type Worker struct {
-	cfg       Config
-	consumer  *kafka.Consumer
-	store     Store
-	idem      IdempotencyChecker
-	outbox    Publisher
-	log       *slog.Logger
-	stopOnce  sync.Once
+	cfg      Config
+	consumer *kafka.Consumer
+	store    Store
+	idem     IdempotencyChecker
+	outbox   Publisher
+	log      *slog.Logger
+	stopOnce sync.Once
 }
 
 func New(cfg Config, st Store, idem IdempotencyChecker, outbox Publisher, log *slog.Logger) (*Worker, error) {
@@ -105,18 +105,16 @@ func (w *Worker) Run(ctx context.Context) error {
 }
 
 func (w *Worker) processMessage(ctx context.Context, msg *kafka.Message) error {
-	var event types.Event
-	if err := json.Unmarshal(msg.Value, &event); err != nil {
-		if dlqErr := w.store.InsertDLQEvent(ctx, "unknown", "unknown", json.RawMessage(msg.Value), "invalid_json", "unknown"); dlqErr != nil {
-			return fmt.Errorf("worker: parse failed + dlq insert failed: %w", dlqErr)
-		}
-		return fmt.Errorf("worker: parse event: %w", err)
-	}
-
 	commit := func() error {
 		_, err := w.consumer.CommitMessage(msg)
 		return err
 	}
+
+	var event types.Event
+	if err := json.Unmarshal(msg.Value, &event); err != nil {
+		return w.processMalformedMessage(ctx, msg.Value, commit, err)
+	}
+
 	record := store.EventRecord{
 		TenantID:       event.TenantID,
 		EventType:      event.EventType,
@@ -129,6 +127,17 @@ func (w *Worker) processMessage(ctx context.Context, msg *kafka.Message) error {
 		KafkaOffset:    int64(msg.TopicPartition.Offset),
 	}
 	return w.processDecodedEvent(ctx, event, record, commit)
+}
+
+func (w *Worker) processMalformedMessage(ctx context.Context, body []byte, commit func() error, parseErr error) error {
+	if dlqErr := w.store.InsertDLQEvent(ctx, "unknown", "unknown", json.RawMessage(body), "invalid_json", "unknown"); dlqErr != nil {
+		return fmt.Errorf("worker: parse failed + dlq insert failed: %w", dlqErr)
+	}
+	if err := commit(); err != nil {
+		return fmt.Errorf("worker: commit malformed offset after dlq: %w", err)
+	}
+	w.log.Warn("malformed event sent to dlq", "error", parseErr)
+	return nil
 }
 
 func (w *Worker) Close() {

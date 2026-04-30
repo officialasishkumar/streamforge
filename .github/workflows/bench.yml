@@ -2,22 +2,9 @@ name: bench
 
 on:
   workflow_dispatch:
-  pull_request:
-  push:
-    branches: [main]
 
 jobs:
-  smoke-bench:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: docker compose up -d
-      - run: docker run --rm --network host -v "$PWD/bench/k6:/scripts" grafana/k6 run --duration 1m --vus 50 /scripts/ingest_baseline.js
-      - run: docker compose down -v
-
   full-bench:
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

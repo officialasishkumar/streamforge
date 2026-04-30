@@ -33,9 +33,9 @@ type WorkersConfig struct {
 }
 
 type KafkaConfig struct {
-	Brokers             []string         `mapstructure:"brokers"`
-	Topics              KafkaTopics      `mapstructure:"topics"`
-	PartitionerStrategy string           `mapstructure:"partitioner_strategy"`
+	Brokers             []string    `mapstructure:"brokers"`
+	Topics              KafkaTopics `mapstructure:"topics"`
+	PartitionerStrategy string      `mapstructure:"partitioner_strategy"`
 }
 
 type KafkaTopics struct {
@@ -98,12 +98,89 @@ func Load(path string) (Config, error) {
 	if err := v.Unmarshal(&cfg); err != nil {
 		return cfg, fmt.Errorf("config: unmarshal: %w", err)
 	}
+	if err := applyResolvedValues(v, &cfg); err != nil {
+		return cfg, fmt.Errorf("config: apply resolved values: %w", err)
+	}
 
 	if err := cfg.Validate(); err != nil {
 		return cfg, fmt.Errorf("config: validate: %w", err)
 	}
 
 	return cfg, nil
+}
+
+func applyResolvedValues(v *viper.Viper, cfg *Config) error {
+	poolMin, err := int32Setting(v, "postgres.pool_min")
+	if err != nil {
+		return err
+	}
+	poolMax, err := int32Setting(v, "postgres.pool_max")
+	if err != nil {
+		return err
+	}
+
+	cfg.Ingest.Port = v.GetInt("ingest.port")
+	cfg.Ingest.MaxBatchSize = v.GetInt("ingest.max_batch_size")
+	cfg.Ingest.RequestTimeout = v.GetDuration("ingest.request_timeout")
+	cfg.Workers.PoolSize = v.GetInt("workers.pool_size")
+	cfg.Workers.BatchSize = v.GetInt("workers.batch_size")
+	cfg.Workers.FetchTimeout = v.GetDuration("workers.fetch_timeout")
+	cfg.Kafka.Brokers = stringSlice(v, "kafka.brokers")
+	cfg.Kafka.Topics.Events = v.GetString("kafka.topics.events")
+	cfg.Kafka.Topics.DLQ = v.GetString("kafka.topics.dlq")
+	cfg.Kafka.Topics.Outbox = v.GetString("kafka.topics.outbox")
+	cfg.Kafka.PartitionerStrategy = v.GetString("kafka.partitioner_strategy")
+	cfg.Postgres.DSN = v.GetString("postgres.dsn")
+	cfg.Postgres.PoolMin = poolMin
+	cfg.Postgres.PoolMax = poolMax
+	cfg.Postgres.StatementTimeout = v.GetDuration("postgres.statement_timeout")
+	cfg.S3.Bucket = v.GetString("s3.bucket")
+	cfg.S3.Endpoint = v.GetString("s3.endpoint")
+	cfg.S3.Region = v.GetString("s3.region")
+	cfg.S3.ArchivePrefix = v.GetString("s3.archive_prefix")
+	cfg.SQS.QueueURL = v.GetString("sqs.queue_url")
+	cfg.SQS.Endpoint = v.GetString("sqs.endpoint")
+	cfg.SQS.Region = v.GetString("sqs.region")
+	cfg.Redis.Addr = v.GetString("redis.addr")
+	cfg.Redis.DB = v.GetInt("redis.db")
+	cfg.Redis.RateLimitKeyPrefix = v.GetString("redis.ratelimit_key_prefix")
+	cfg.Observability.MetricsAddr = v.GetString("observability.metrics_addr")
+	cfg.Observability.LogLevel = v.GetString("observability.log_level")
+	cfg.Observability.SampleRate = v.GetFloat64("observability.sample_rate")
+	cfg.RateLimits.DefaultPerTenantRPS = v.GetInt("rate_limits.default_per_tenant_rps")
+	cfg.RateLimits.DefaultBurst = v.GetInt("rate_limits.default_burst")
+	return nil
+}
+
+func stringSlice(v *viper.Viper, key string) []string {
+	values := v.GetStringSlice(key)
+	if len(values) == 0 {
+		values = []string{v.GetString(key)}
+	}
+
+	var out []string
+	for _, value := range values {
+		for _, part := range strings.Split(value, ",") {
+			part = strings.TrimSpace(part)
+			if part != "" {
+				out = append(out, part)
+			}
+		}
+	}
+	return out
+}
+
+func int32Setting(v *viper.Viper, key string) (int32, error) {
+	const (
+		minInt32 = -1 << 31
+		maxInt32 = 1<<31 - 1
+	)
+
+	value := v.GetInt(key)
+	if value < minInt32 || value > maxInt32 {
+		return 0, fmt.Errorf("%s is outside int32 range", key)
+	}
+	return int32(value), nil
 }
 
 func (c Config) Validate() error {

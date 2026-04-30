@@ -21,10 +21,10 @@ type Archiver interface {
 }
 
 type S3Archiver struct {
-	client   *s3.Client
-	bucket   string
-	prefix   string
-	breaker  *gobreaker.CircuitBreaker
+	client  *s3.Client
+	bucket  string
+	prefix  string
+	breaker *gobreaker.CircuitBreaker
 }
 
 func NewS3Archiver(ctx context.Context, endpoint, region, bucket, prefix string) (*S3Archiver, error) {

@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"math"
 	"os"
 	"os/signal"
 	"strings"
@@ -44,12 +46,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	outboxBatch, err := safeInt32(cfg.Workers.BatchSize)
+	if err != nil {
+		log.Error("invalid workers.batch_size", "error", err)
+		os.Exit(1)
+	}
+
 	w, err := worker.New(worker.Config{
 		Brokers:       strings.Join(cfg.Kafka.Brokers, ","),
 		Topic:         cfg.Kafka.Topics.Events,
 		GroupID:       "streamforge-workers",
 		PoolSize:      int64(cfg.Workers.PoolSize),
-		OutboxBatch:   int32(cfg.Workers.BatchSize),
+		OutboxBatch:   outboxBatch,
 		PollTimeoutMs: int(cfg.Workers.FetchTimeout.Milliseconds()),
 	}, st, worker.NewRedisIdempotencyChecker(redisClient, "streamforge:idem:"), publisher, log)
 	if err != nil {
@@ -62,4 +70,11 @@ func main() {
 		log.Error("worker runtime failure", "error", err)
 		os.Exit(1)
 	}
+}
+
+func safeInt32(v int) (int32, error) {
+	if v < 0 || v > math.MaxInt32 {
+		return 0, fmt.Errorf("value %d is out of int32 range", v)
+	}
+	return int32(v), nil
 }

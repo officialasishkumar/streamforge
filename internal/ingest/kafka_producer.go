@@ -24,8 +24,8 @@ type KafkaProducer struct {
 
 func NewKafkaProducer(brokers string, topic string) (*KafkaProducer, error) {
 	p, err := kafka.NewProducer(&kafka.ConfigMap{
-		"bootstrap.servers": brokers,
-		"acks":              "all",
+		"bootstrap.servers":  brokers,
+		"acks":               "all",
 		"enable.idempotence": true,
 	})
 	if err != nil {

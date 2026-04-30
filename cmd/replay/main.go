@@ -142,4 +142,3 @@ func parseTimeBounds(fromISO, toISO string) (*time.Time, *time.Time) {
 	}
 	return from, to
 }
-

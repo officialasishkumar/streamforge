@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/go-connections/nat"
 	"github.com/officialasishkumar/streamforge/internal/types"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -89,7 +90,7 @@ func startContainer(t *testing.T, ctx context.Context, image, exposedPort string
 	req := testcontainers.ContainerRequest{
 		Image:        image,
 		ExposedPorts: []string{exposedPort},
-		WaitingFor:   wait.ForListeningPort(exposedPort).WithStartupTimeout(30 * time.Second),
+		WaitingFor:   wait.ForListeningPort(nat.Port(exposedPort)).WithStartupTimeout(30 * time.Second),
 	}
 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,

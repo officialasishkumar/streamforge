@@ -77,13 +77,16 @@ type memoryStore struct {
 func (m *memoryStore) InsertDLQEvent(context.Context, string, string, json.RawMessage, string, string) error {
 	return nil
 }
+
 func (m *memoryStore) InsertEventWithOutbox(context.Context, store.EventRecord, string, json.RawMessage) error {
 	m.eventInsertCount++
 	return nil
 }
+
 func (m *memoryStore) FindUnsentOutboxRows(context.Context, int32) ([]store.OutboxRow, error) {
 	return nil, nil
 }
+
 func (m *memoryStore) MarkOutboxSent(context.Context, int64) error {
 	return nil
 }
@@ -95,6 +98,7 @@ type memoryIdempotency struct {
 func (m *memoryIdempotency) Seen(_ context.Context, tenantID, key string) (bool, error) {
 	return m.seen[tenantID+":"+key], nil
 }
+
 func (m *memoryIdempotency) Mark(_ context.Context, tenantID, key string, _ time.Duration) error {
 	m.seen[tenantID+":"+key] = true
 	return nil

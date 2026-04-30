@@ -1,6 +1,6 @@
 module github.com/officialasishkumar/streamforge
 
-go 1.22
+go 1.25.9
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.30.1
@@ -10,10 +10,11 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.34.0
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/confluentinc/confluent-kafka-go/v2 v2.5.0
+	github.com/docker/go-connections v0.5.0
 	github.com/go-redis/redis_rate/v10 v10.0.1
 	github.com/jackc/pgx/v5 v5.5.5
 	github.com/prometheus/client_golang v1.19.1
-	github.com/redis/go-redis/v9 v9.5.1
+	github.com/redis/go-redis/v9 v9.6.3
 	github.com/sony/gobreaker v1.0.0
 	github.com/spf13/viper v1.19.0
 	github.com/testcontainers/testcontainers-go v0.31.0
@@ -49,7 +50,6 @@ require (
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/docker v26.1.0+incompatible // indirect
-	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect

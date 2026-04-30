@@ -1,0 +1,16 @@
+.git
+.github
+.cursor
+.cache
+.tmp
+bench/results/*.json
+coverage.out
+dist
+tmp
+rendered.yaml
+*.test
+*.out
+*.local.yaml
+*.local.yml
+.env
+.env.*
