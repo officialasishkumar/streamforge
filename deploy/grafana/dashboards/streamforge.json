@@ -1,0 +1,78 @@
+{
+  "id": null,
+  "uid": "streamforge-main",
+  "title": "StreamForge",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Ingest Request Latency p95",
+      "gridPos": {"x": 0, "y": 0, "w": 8, "h": 8},
+      "targets": [
+        {"expr": "histogram_quantile(0.95, sum(rate(streamforge_request_duration_seconds_bucket[5m])) by (le))", "refId": "A"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Events Received Rate",
+      "gridPos": {"x": 8, "y": 0, "w": 8, "h": 8},
+      "targets": [
+        {"expr": "sum(rate(streamforge_events_received_total[5m])) by (result)", "refId": "A"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Worker Throughput",
+      "gridPos": {"x": 16, "y": 0, "w": 8, "h": 8},
+      "targets": [
+        {"expr": "sum(rate(streamforge_events_processed_total[5m])) by (result)", "refId": "A"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Kafka Consumer Lag",
+      "gridPos": {"x": 0, "y": 8, "w": 8, "h": 8},
+      "targets": [
+        {"expr": "sum(streamforge_kafka_consumer_lag) by (topic)", "refId": "A"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Postgres Pool Saturation",
+      "gridPos": {"x": 8, "y": 8, "w": 8, "h": 8},
+      "targets": [
+        {"expr": "streamforge_postgres_pool_in_use", "refId": "A"},
+        {"expr": "streamforge_postgres_pool_idle", "refId": "B"},
+        {"expr": "streamforge_postgres_pool_waiting", "refId": "C"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Circuit Breaker States",
+      "gridPos": {"x": 16, "y": 8, "w": 8, "h": 8},
+      "targets": [
+        {"expr": "streamforge_circuit_breaker_state", "refId": "A"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "DLQ Rate",
+      "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "sum(rate(streamforge_events_processed_total{result=\"dlq\"}[5m]))", "refId": "A"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "S3 Archive Lag Proxy",
+      "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "sum(rate(streamforge_events_received_total[5m])) - sum(rate(streamforge_events_processed_total[5m]))", "refId": "A"}
+      ]
+    }
+  ],
+  "templating": {"list": []},
+  "annotations": {"list": []}
+}
