@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: streamforge-worker
+spec:
+  replicas: {{ .Values.worker.replicas }}
+  selector:
+    matchLabels:
+      app: streamforge-worker
+  template:
+    metadata:
+      labels:
+        app: streamforge-worker
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      containers:
+        - name: worker
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["./cmd/worker"]
+          env:
+            - name: STREAMFORGE_POSTGRES_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: streamforge-secrets
+                  key: POSTGRES_DSN
+          volumeMounts:
+            - name: config
+              mountPath: /etc/streamforge
+      volumes:
+        - name: config
+          configMap:
+            name: streamforge-config

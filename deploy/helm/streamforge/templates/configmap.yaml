@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: streamforge-config
+data:
+  streamforge.yaml: |
+    ingest:
+      port: 8080
+      max_batch_size: 1000
+      request_timeout: 5s
+    workers:
+      pool_size: 8
+      batch_size: 500
+      fetch_timeout: 2s

@@ -1,0 +1,19 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: streamforge-ingest
+spec:
+  minAvailable: {{ .Values.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      app: streamforge-ingest
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: streamforge-worker
+spec:
+  minAvailable: {{ .Values.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      app: streamforge-worker
