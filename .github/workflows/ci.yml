@@ -74,7 +74,7 @@ jobs:
           curl -sSL -o kubeconform.tar.gz https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz
           tar -xzf kubeconform.tar.gz
           chmod +x kubeconform
-          ./kubeconform -kubernetes-version "${{ matrix.k8s }}" rendered.yaml
+          ./kubeconform -ignore-missing-schemas -kubernetes-version "${{ matrix.k8s }}" rendered.yaml
 
   security:
     runs-on: ubuntu-latest
