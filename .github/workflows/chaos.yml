@@ -1,0 +1,16 @@
+name: chaos
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * *"
+
+jobs:
+  chaos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose up -d
+      - run: bash chaos/run_all.sh
+      - run: echo "Chaos suite completed for $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+      - run: docker compose down -v
