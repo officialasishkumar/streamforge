@@ -28,7 +28,7 @@ jobs:
       - run: docker run --rm --network host -v "$PWD/bench/k6:/scripts" grafana/k6 run /scripts/sustained.js
       - run: docker run --rm --network host -v "$PWD/bench/k6:/scripts" grafana/k6 run /scripts/mixed_workload.js
       - run: python3 bench/compare.py bench/results/baseline.json bench/results/current/ingest_baseline.json > bench/results/current/comparison.md
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: bench-results
           path: bench/results/current
