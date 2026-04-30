@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: streamforge-ingest
+  namespace: streamforge
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: streamforge-ingest
+  template:
+    metadata:
+      labels:
+        app: streamforge-ingest
+    spec:
+      serviceAccountName: streamforge
+      containers:
+        - name: ingest
+          image: ghcr.io/officialasishkumar/streamforge:latest
+          args: ["./cmd/ingest"]
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: streamforge-ingest
+  namespace: streamforge
+  labels:
+    app: streamforge-ingest
+spec:
+  selector:
+    app: streamforge-ingest
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080

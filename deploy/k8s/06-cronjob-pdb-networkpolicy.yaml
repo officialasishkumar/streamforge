@@ -1,0 +1,42 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: streamforge-partition-creator
+  namespace: streamforge
+spec:
+  schedule: "0 0 25 * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: partition-creator
+              image: ghcr.io/officialasishkumar/streamforge:latest
+              command: ["/bin/sh", "-c", "/app/scripts/create_partition.sh"]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: streamforge-ingest
+  namespace: streamforge
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: streamforge-ingest
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: streamforge-default
+  namespace: streamforge
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - namespaceSelector: {}
+  egress:
+    - to:
+        - namespaceSelector: {}

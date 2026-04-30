@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: streamforge-worker
+  namespace: streamforge
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: streamforge-worker
+  template:
+    metadata:
+      labels:
+        app: streamforge-worker
+    spec:
+      serviceAccountName: streamforge
+      containers:
+        - name: worker
+          image: ghcr.io/officialasishkumar/streamforge:latest
+          args: ["./cmd/worker"]
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: streamforge-worker
+  namespace: streamforge
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: streamforge-worker
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
