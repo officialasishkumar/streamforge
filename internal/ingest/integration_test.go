@@ -11,62 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/go-connections/nat"
 	"github.com/officialasishkumar/streamforge/internal/types"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 func TestIngestIntegrationFlows(t *testing.T) {
-	ctx := context.Background()
-
-	specs := []containerSpec{
-		{
-			image: "postgres:16",
-			port:  "5432/tcp",
-			env: map[string]string{
-				"POSTGRES_DB":       "streamforge",
-				"POSTGRES_USER":     "postgres",
-				"POSTGRES_PASSWORD": "postgres",
-			},
-		},
-		{image: "redis:7", port: "6379/tcp"},
-		{
-			image: "localstack/localstack:3",
-			port:  "4566/tcp",
-			env: map[string]string{
-				"SERVICES":           "s3,sqs",
-				"AWS_DEFAULT_REGION": "us-east-1",
-			},
-		},
-		{
-			image: "confluentinc/cp-kafka:7.6.1",
-			port:  "9092/tcp",
-			env: map[string]string{
-				"KAFKA_NODE_ID":                                  "1",
-				"KAFKA_PROCESS_ROLES":                            "broker,controller",
-				"KAFKA_CONTROLLER_QUORUM_VOTERS":                 "1@localhost:9093",
-				"KAFKA_LISTENERS":                                "PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093",
-				"KAFKA_ADVERTISED_LISTENERS":                     "PLAINTEXT://localhost:9092",
-				"KAFKA_LISTENER_SECURITY_PROTOCOL_MAP":           "PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT",
-				"KAFKA_CONTROLLER_LISTENER_NAMES":                "CONTROLLER",
-				"KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR":         "1",
-				"KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR": "1",
-				"KAFKA_TRANSACTION_STATE_LOG_MIN_ISR":            "1",
-				"KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS":         "0",
-				"KAFKA_AUTO_CREATE_TOPICS_ENABLE":                "true",
-				"CLUSTER_ID":                                     "MkU3OEVBNTcwNTJENDM2Qk",
-			},
-		},
-	}
-	containers := make([]testcontainers.Container, 0, len(specs))
-	for _, spec := range specs {
-		containers = append(containers, startContainer(t, ctx, spec))
-	}
-	for _, c := range containers {
-		t.Cleanup(func() { _ = c.Terminate(ctx) })
-	}
-
 	t.Run("rate_limited", func(t *testing.T) {
 		h := NewHandler(ServerConfig{MaxBatchSize: 1000, RequestTimeout: 2 * time.Second}, Dependencies{
 			SchemaCache: NewSchemaCache(mockSchemaProvider{}, time.Minute),
@@ -120,30 +68,6 @@ func TestIngestIntegrationFlows(t *testing.T) {
 			t.Fatalf("expected 503 got %d", rec.Code)
 		}
 	})
-}
-
-type containerSpec struct {
-	image string
-	port  string
-	env   map[string]string
-}
-
-func startContainer(t *testing.T, ctx context.Context, spec containerSpec) testcontainers.Container {
-	t.Helper()
-	req := testcontainers.ContainerRequest{
-		Image:        spec.image,
-		Env:          spec.env,
-		ExposedPorts: []string{spec.port},
-		WaitingFor:   wait.ForListeningPort(nat.Port(spec.port)).WithStartupTimeout(30 * time.Second),
-	}
-	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
-	if err != nil {
-		t.Fatalf("start container %s: %v", spec.image, err)
-	}
-	return c
 }
 
 type mockSchemaProvider struct{ reject bool }

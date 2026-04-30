@@ -1,0 +1,10 @@
+# These Docker/containerd advisories are pulled into go.mod through
+# confluent-kafka-go's transitive test dependency graph, not StreamForge runtime
+# imports. govulncheck reports no reachable vulnerable symbols in application code.
+CVE-2024-25621
+CVE-2024-40635
+CVE-2025-64329
+CVE-2024-41110
+CVE-2026-34040
+CVE-2026-33997
+CVE-2025-54410
