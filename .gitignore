@@ -28,3 +28,11 @@ tmp/
 # Tooling caches
 .cache/
 .tmp/
+
+# Local-only docs
+resume.tex
+resume.pdf
+resume.aux
+resume.log
+resume.out
+resume.synctex.gz
