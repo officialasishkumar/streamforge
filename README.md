@@ -1,78 +1,79 @@
-# Event pipelines fail silently under pressure without durable ingest, explicit backpressure, and replayable archives.
+# StreamForge
 
-StreamForge is a self-hosted real-time event analytics control plane that preserves ingest reliability under dependency failures, schema drift, and traffic spikes.
+A self-hosted, multi-tenant event ingestion service. Accepts batched events over HTTP, archives them to object storage, and streams them through Kafka into Postgres with a transactional outbox for downstream notifications.
 
-## Why StreamForge
+The goal is straightforward: never lose an accepted event, even when Postgres, Kafka, or downstream consumers misbehave.
 
-Event platforms usually fail in ways operators discover too late: retries amplify traffic, partitions drift out of order, and partial writes leave no authoritative recovery source. Multi-tenant systems are worse because one noisy tenant can saturate worker pools or connection pools for everyone else. StreamForge focuses on bounded failure: archive-first ingest, explicit outbox guarantees, idempotent writes, and operational visibility tied to the golden signals teams actually page on.
-
-## Quickstart (<5 minutes)
-
-1. Start local dependencies and services:
-   - `docker compose up -d`
-2. Submit an event batch:
-   - `curl -sS -X POST http://localhost:8080/v1/events -H "Content-Type: application/json" -d '{"tenant_id":"tenant-a","events":[{"event_type":"user.signup","body":{"source":"web"},"client_timestamp":"2026-05-01T00:00:00Z"}]}'`
-3. Open Grafana:
-   - `http://localhost:3000`
-4. View dashboard:
-   - `StreamForge` dashboard under the provisioned folder.
-
-## Architecture
+## How it works
 
 ```mermaid
 flowchart LR
-  Client --> Ingest["Ingest API (archive-first)"]
-  Ingest --> S3["S3 raw archive"]
-  Ingest --> Kafka["Kafka events topic"]
-  Kafka --> Worker["Worker pool"]
-  Worker --> Postgres["Postgres partitioned events"]
-  Worker --> Outbox["Postgres outbox table"]
-  Outbox --> Publisher["Outbox publisher"]
-  Publisher --> SQS["SQS notifications"]
-  Ingest --> Prom["Prometheus metrics"]
+  Client --> Ingest
+  Ingest --> S3[(S3 archive)]
+  Ingest --> Kafka
+  Kafka --> Worker
+  Worker --> Postgres[(Postgres events)]
+  Worker --> Outbox[(Outbox table)]
+  Outbox --> Publisher
+  Publisher --> SQS
+  Ingest --> Prom[Prometheus]
   Worker --> Prom
   Prom --> Grafana
 ```
 
-The ingest path writes every accepted batch to S3 before acknowledging clients, then publishes tenant-keyed messages to Kafka. Worker consumers persist events and outbox rows transactionally so notification fanout happens iff the event is durable. Replay tooling can republish archived S3 payloads with tenant and time filters during incident recovery.
+1. **Ingest** validates the batch, writes the raw payload to S3, then publishes to Kafka keyed by tenant. Clients only get a 2xx after the archive write succeeds.
+2. **Worker** consumes from Kafka, writes events and outbox rows in a single Postgres transaction, and only commits Kafka offsets after the transaction succeeds.
+3. **Outbox publisher** drains the outbox table to SQS, so downstream notifications fire only when the event is durably stored.
+4. **Replay CLI** can re-publish archived S3 payloads (filtered by tenant and time window) when something downstream needs to be rebuilt.
+
+Per-tenant Kafka partitioning preserves ordering within a tenant. Idempotency keys prevent duplicate writes on redelivery.
+
+## Quickstart
+
+```bash
+docker compose up -d
+
+curl -sS -X POST http://localhost:8080/v1/events \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenant_id": "tenant-a",
+    "events": [
+      {"event_type": "user.signup", "body": {"source": "web"}, "client_timestamp": "2026-05-01T00:00:00Z"}
+    ]
+  }'
+```
+
+Grafana is at `http://localhost:3000` with a provisioned StreamForge dashboard.
 
 ## Configuration
 
-Primary runtime configuration is in `streamforge.yaml`. Environment overrides follow `STREAMFORGE_*` keys via Viper.
+`streamforge.yaml` holds the defaults. Any field can be overridden with a `STREAMFORGE_*` environment variable (for example `STREAMFORGE_POSTGRES_DSN`).
 
-## Operations
+## Operational notes
 
-- **Postgres down**
-  - Worker writes fail, offsets are not committed, and Kafka retains backlog for redelivery.
-- **Worker crash**
-  - Uncommitted offsets are redelivered; idempotency gate prevents duplicate durable writes.
-- **Kafka rebalance**
-  - Tenant-keyed partitioning preserves per-tenant order within partition ownership transitions.
-- **Malformed event**
-  - Ingest returns `400` with validation details; worker-side parse failures are captured in DLQ storage.
-- **DLQ inspection**
-  - Query `dlq_events` in Postgres and correlate with `correlation_id` and tenant.
-- **Backfill via replay**
-  - Use `cmd/replay` with `--tenant`, `--from`, `--to`, and `--rps` controls.
+| Failure mode | What happens |
+|---|---|
+| Postgres down | Worker writes fail, Kafka offsets are not committed, backlog is replayed on recovery |
+| Worker crashes mid-batch | Uncommitted offsets are redelivered; idempotency keys block duplicate writes |
+| Kafka rebalance | Tenant-keyed partitioning preserves per-tenant ordering across owners |
+| Malformed event | Ingest returns 400 with details; worker-side parse failures land in the DLQ table |
+| Need to rebuild a sink | `cmd/replay --tenant=... --from=... --to=... --rps=...` re-publishes from S3 |
+
+DLQ inspection lives in the `dlq_events` Postgres table; correlate by `correlation_id` and tenant.
 
 ## Deployment
 
-- Local: `docker compose`
-- Kubernetes with Helm: `deploy/helm/streamforge`
-- Raw Kubernetes: `deploy/k8s` (see apply order in that README)
+- Local: `docker compose up`
+- Kubernetes: manifests in `deploy/k8s/` (apply order documented in that folder's README)
 
 ## Limitations
 
-- Single-region assumptions across Kafka, Postgres, and object storage.
-- Postgres analytics throughput ceiling around high sustained ingest; tenants at ~50k+ events/sec should evaluate ClickHouse sinks.
-- Alerting is dashboard-oriented by default and does not ship opinionated alert policies.
-- Replay throughput is bounded by S3 object listing and object fetch latency.
-- Schema cache synchronization across ingest replicas is eventually consistent with a 60s refresh window.
+- Single-region; cross-region failover is out of scope.
+- Postgres is the analytics sink; tenants pushing 50k+ events/sec should consider a ClickHouse sink instead.
+- Replay throughput is bounded by S3 list/fetch latency.
+- Schema cache across ingest replicas is eventually consistent (60s refresh).
+- Ships dashboards but no opinionated alert policies.
 
 ## License
 
-Apache 2.0. See `LICENSE`.
-
-## Contributing
-
-See `CONTRIBUTING.md`.
+Apache 2.0.
