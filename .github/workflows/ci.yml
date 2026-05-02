@@ -60,21 +60,18 @@ jobs:
       - run: docker compose config >/dev/null
       - run: go test -run TestEventJSONRoundTrip ./internal/types
 
-  helm-lint:
+  k8s-validate:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         k8s: ["1.28.0", "1.29.0", "1.30.0"]
     steps:
       - uses: actions/checkout@v4
-      - uses: azure/setup-helm@v4
-      - run: helm lint deploy/helm/streamforge
-      - run: helm template streamforge deploy/helm/streamforge > rendered.yaml
       - run: |
           curl -sSL -o kubeconform.tar.gz https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz
           tar -xzf kubeconform.tar.gz
           chmod +x kubeconform
-          ./kubeconform -ignore-missing-schemas -kubernetes-version "${{ matrix.k8s }}" rendered.yaml
+          ./kubeconform -ignore-missing-schemas -kubernetes-version "${{ matrix.k8s }}" deploy/k8s/
 
   security:
     runs-on: ubuntu-latest

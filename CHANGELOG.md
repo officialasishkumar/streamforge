@@ -16,7 +16,7 @@ The format is based on Keep a Changelog.
 ### Added
 - Ingest API with schema validation, archive-first flow, and middleware instrumentation.
 - Worker service with idempotency handling and outbox publisher.
-- Helm and raw Kubernetes deployment manifests.
+- Raw Kubernetes deployment manifests.
 
 ## [0.1.0] - 2026-05-01
 

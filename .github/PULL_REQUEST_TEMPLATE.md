@@ -7,7 +7,7 @@
 - [ ] Unit tests
 - [ ] Integration tests
 - [ ] Bench smoke
-- [ ] Helm template/lint
+- [ ] Kubernetes manifest validation
 
 ## Operational Impact
 
